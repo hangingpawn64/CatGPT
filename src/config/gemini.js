@@ -9,7 +9,7 @@ import {
   ThinkingLevel,
 } from '@google/genai';
 
-async function runCatGPT(prompt) {
+async function runCatGPT(messages) {
   const ai = new GoogleGenAI({
     apiKey: apiKey,
   });
@@ -86,24 +86,16 @@ This way it stays funny **without becoming unusable**.`,
     ],
   };
   const model = 'gemini-3-flash-preview';
-  const contents = [
-    {
-      role: 'user',
-      parts: [
-        {
-          text: prompt,
-        },
-      ],
-    },
-  ];
+  const contents = messages.map(({ role, content }) => ({
+    role,
+    parts: [{ text: content }],
+  }));
 
   const response = await ai.models.generateContentStream({
     model,
     config,
     contents,
   });
-  let fileIndex = 0;
-
   let finalText = "";
   for await (const chunk of response) {
     if (chunk.text) {
@@ -115,5 +107,4 @@ This way it stays funny **without becoming unusable**.`,
 }
 
 export default runCatGPT;
-
 

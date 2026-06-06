@@ -13,32 +13,25 @@ import {
   Mic, 
   ArrowUp,
   MessageSquare,
-  Sparkles,
   Trash2,
   Moon
 } from 'lucide-react';
 
-import { context } from './context/context';
+import { context } from './context/chatContext';
 
-const INITIAL_RECENTS = [];
- 
-const INITIAL_HISTORIES = {};
 
 function App() {
   const {
-    prevPrompts,
-    setPrevPrompts,
-    recentPrompt,
-    setRecentPrompt,
-    showResult,
-    setShowResult,
+    conversations,
+    activeConversation,
+    activeConversationId,
     loading,
-    setLoading,
-    resultData,
-    setResultData,
     onSent,
     input,
-    setInput
+    setInput,
+    startNewChat,
+    selectConversation,
+    clearConversations,
   } = useContext(context);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -54,7 +47,7 @@ function App() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [resultData, loading]);
+  }, [activeConversation, loading]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -64,8 +57,7 @@ function App() {
   }, [input]);
 
   const handleNewChat = () => {
-    setShowResult(false);
-    setInput('');
+    startNewChat();
     setProfileMenuOpen(false);
   };
 
@@ -130,16 +122,13 @@ function App() {
           <div className="sidebar-recents-section">
             <span className="recents-title">Recents</span>
             <div className="recents-list">
-              {prevPrompts.map((item, index) => (
+              {conversations.map((conversation) => (
                 <div 
-                  key={index} 
-                  className={`recent-item ${recentPrompt === item ? 'active' : ''}`}
-                  onClick={() => {
-                    setRecentPrompt(item);
-                    onSent(item);
-                  }}
+                  key={conversation.id}
+                  className={`recent-item ${activeConversationId === conversation.id ? 'active' : ''}`}
+                  onClick={() => selectConversation(conversation.id)}
                 >
-                  <span className="recent-item-text">{item}</span>
+                  <span className="recent-item-text">{conversation.title}</span>
                 </div>
               ))}
             </div>
@@ -175,8 +164,7 @@ function App() {
               </div>
               <div className="profile-dropdown-divider"></div>
               <div className="profile-dropdown-item" onClick={() => {
-                setPrevPrompts([]);
-                setShowResult(false);
+                clearConversations();
                 setProfileMenuOpen(false);
               }}>
                 <Trash2 size={16} />
@@ -220,7 +208,7 @@ function App() {
         </header>
 
         {/* Content Display (Landing or Chat screen) */}
-        {!showResult ? (
+        {!activeConversation ? (
           /* Empty landing state screen */
           <div className="landing-screen">
             <h1 className="landing-title">Good to see you, User.</h1>
@@ -249,7 +237,12 @@ function App() {
                     <Mic size={18} />
                   </button>
                   {input.trim() ? (
-                    <button className="btn-send" title="Send message" onClick={() => handleSendMessage()}>
+                    <button
+                      className="btn-send"
+                      title="Send message"
+                      onClick={() => handleSendMessage()}
+                      disabled={loading}
+                    >
                       <ArrowUp size={16} />
                     </button>
                   ) : null}
@@ -278,37 +271,37 @@ function App() {
           <div className="chat-messages-container">
             <div className="chat-messages-wrapper">
               
-              {/* User Message */}
-              <div className="message-item user">
-                <div className="message-avatar user">AT</div>
-                <div className="message-content-wrapper">
-                  <span className="message-sender">You</span>
-                  <div className="message-bubble">
-                    <p>{recentPrompt}</p>
+              {activeConversation.messages.map((message) => (
+                <div
+                  className={`message-item ${message.role === 'user' ? 'user' : 'ai'}`}
+                  key={message.id}
+                >
+                  <div className={`message-avatar ${message.role === 'user' ? 'user' : 'ai'}`}>
+                    {message.role === 'user' ? 'AT' : 'CG'}
+                  </div>
+                  <div className="message-content-wrapper">
+                    <span className="message-sender">
+                      {message.role === 'user' ? 'You' : 'CatGPT'}
+                    </span>
+                    {message.pending ? (
+                      <div className="typing-loader">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                    ) : message.role === 'user' ? (
+                      <div className="message-bubble">
+                        <p>{message.content}</p>
+                      </div>
+                    ) : (
+                      <div
+                        className="message-bubble"
+                        dangerouslySetInnerHTML={{ __html: message.content }}
+                      />
+                    )}
                   </div>
                 </div>
-              </div>
-
-              {/* AI Response */}
-              <div className="message-item ai">
-                <div className="message-avatar ai">CG</div>
-                <div className="message-content-wrapper">
-                  <span className="message-sender">CatGPT</span>
-                  
-                  {loading ? (
-                    <div className="typing-loader">
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </div>
-                  ) : (
-                    <div 
-                      className="message-bubble"
-                      dangerouslySetInnerHTML={{ __html: resultData }}
-                    />
-                  )}
-                </div>
-              </div>
+              ))}
 
               <div ref={messagesEndRef} />
             </div>
@@ -333,7 +326,12 @@ function App() {
                     <Mic size={18} />
                   </button>
                   {input.trim() ? (
-                    <button className="btn-send" title="Send message" onClick={() => handleSendMessage()}>
+                    <button
+                      className="btn-send"
+                      title="Send message"
+                      onClick={() => handleSendMessage()}
+                      disabled={loading}
+                    >
                       <ArrowUp size={16} />
                     </button>
                   ) : null}
